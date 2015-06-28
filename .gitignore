@@ -1,0 +1,11 @@
+# Fichiers de configuration
+wp-config.php
+
+# Dossiers assets
+wp-content/uploads
+
+# Dossiers thèmes
+
+# Fichiers système
+.idea
+.DS_Store
