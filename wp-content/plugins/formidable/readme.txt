@@ -3,8 +3,8 @@ Contributors: sswells, srwells, jamie.wahlin
 Donate link: http://formidablepro.com/donate
 Tags: admin, AJAX, captcha, contact, contact form, database, email, feedback, form, forms, javascript, jquery, page, plugin, poll, Post, spam, survey, template, widget, wpmu, form builder
 Requires at least: 3.6
-Tested up to: 4.3
-Stable tag: 2.0.11
+Tested up to: 4.3.1
+Stable tag: 2.0.17
 
 Beautiful forms in 60 seconds. The WordPress form builder that enables you to create forms with a simple drag-and-drop interface and in-place editing.
 
@@ -89,6 +89,186 @@ A. Try clearing your browser cache. As plugin modifications are made, frequent j
 [See more FAQs](http://formidablepro.com/formidable-faqs/ "Formidable Form FAQs")
 
 == Changelog ==
+= 2.0.18 =
+* Add frm_field_extra_html hook
+* Change the License submenu to Plugin Licenses
+* Prevent specific html entity from breaking email message
+* PHP 7 updates
+* Add filter for removing wpautop from form success message
+* Fix HTML error on form builder page
+* **Pro Features:**
+* Allow ? and * in Phone Number Format
+* Remove child form from export options
+* Fix LIKE conditional logic bug
+* Some auto-update adjustments
+* Add frm_search_any_terms filter
+* PHP 7 updates
+* Fix file upload issue in CSV export
+* Fix issue with duplicate classes in HTML field
+* Fix filtering by user_id=current in graphs
+* Fix Dynamic List field with value like 9.99
+* Make sure userID field doesn't lose value when conditionally hidden/shown
+
+= 2.0.17 =
+* **Pro Features:**
+* Fix post update bug
+
+= 2.0.16 =
+* Escape font family correctly for quotation marks
+* Only check for updates every 24 hours
+* Allow emails to be separated by a space
+* Prevent old versions of Akismet from causing errors
+* Add unit tests for XML import
+* Styling updates for WP 4.4
+* Save form action settings even if they aren't in the default options
+* More contrast on form builder page
+* Use normal font weight for from builder
+* **Pro Features:**
+* Allow Styles to be duplicated
+* Allow the form key in the CSV download url
+* Make like/not like conditional logic not case-sensitive
+* Fix multiple conditional logics on a Dynamic field
+* Fix XML import with repeating fields
+* Fix notice for old dfe fields
+* Make sure integer is being used for auto_id
+* Fix read-only dependent Dynamic field with a default value
+* Fix conditional radio button default value issue
+* Fixes for conditional logic on sections
+* Fix autoupdating for add-ons
+* Show a message if no license has been entered for an add-on
+
+= 2.0.15 =
+* Send plugin updates through formidablepro.com
+* Update Swedish translation
+* Use media_buttons hook instead of deprecated media_buttons_context hook
+* Unit test updates
+* Fix Portuguese translation error
+* Allow more characters in field description
+* Prevent plugin styling conflict with user roles dropdown
+* Fix installing when the plugin is activated
+* Get rid of ambiguity in FrmField::getAll function
+* Fix the plugin url when used in the mu-plugins folder
+* Make selected values show on form builder page before refresh
+* Minor styling changes to frm_total class
+* Update stylesheet after import
+* Make long text wrap in Chrome cb/radio fields
+* Add 'compact' option to Recaptcha
+* **Pro Features:**
+* Fix conditional logic bug
+* Fix calculations in repeating sections with visibility admin
+* Fix dynamic list fields in repeating sections
+* Fix JS error when removing row w/ read only field
+* Add JavaScript hook for removeRow function
+* Fix error for ordering view by time
+* Fix error with no posted values in embedded forms
+* Escape CSV cells with ' if they start with = (this is to prevent a vulnerability in Excel)
+* Prevent array keys from being appended to user meta vals
+* Switch autoupdating to EDD at formidablepro.com
+* Prevent frm_display_id from switching when View is updated
+* Fix multi-file upload display for embedded forms
+* Allow text value to autopopulate dynamic fields
+* Make embedded fields show up in View filters
+* Don't let userID field affect css class in repeating section
+* Don't check for shortcodes if no brackets are present
+* A few auto updating fixes for multisite
+* Switch [foreach 25] when form is duplicated
+
+
+= 2.0.14 =
+* Stripslashes in Other field
+* Prevent collapse icon from being inserted inside of section
+* Make sure roles dropdowns show correctly after clicking update (in Global Settings)
+* Make form listing and entry listing pages responsive
+* Don't truncate form name in excerpt mode
+* Fix validating embedded forms
+* Fix filtering by repeating fields in Dynamic Views > Detail Page
+* Fix dependent Dynamic autocomplete fields with default values
+* Fix logic on embedded forms and multiselect dd
+* Some readonly field fixes
+* Read-only improvements for multiselect dropdown
+* Improve JavaScript for multiple forms on a page
+* Use the minified css for jQuery UI styling
+* Allow view filtering with time fields using NOW
+* Allow times to be formatted with [25 format='g:i A']
+
+= 2.0.13 =
+* Allow recaptcha to be conditionally hidden on previous pages of form
+* Fix error with embedded form on a conditionally hidden page
+* Show the editlink after an entry is edited in place
+* Make sure collapsible section icons show regardless of characters in the section title
+* Don't require conditionally hidden dynamic category fields
+* Add fields attribute to [editlink] shortcode
+* Fix calculations using repeating checkboxes
+* Prevent double click on Add button in repeating section
+* Clear conditionally hidden fields even if they aren't visible
+* Make sure pro templates get imported in multisite
+* Use separate values by default for post status fields
+* Make sure the separate values option is allows for post status fields
+* Show the frmcal-week-end class consistently
+* Fix default values in repeating Dynamic fields
+* Make Private Views show up in shortcode builder
+* Don't do calculations in conditionally hidden repeating fields
+* Do calcs in repeating fields when adding a row
+* Improve JS for IE8
+* Fix unique time error
+* Fix default date in jQuery calendar
+* Allow entry key with frm-field-value shortcode
+* Fix unique time error
+* Improve calculations across page breaks
+* Prevent clearing default values when hiding/showing sections
+* Run calculations in collapsible sections
+* Fix duplicating regular sections
+* Add post ID View filter
+* Fix empty graphs
+* Allow frm-entry-update-field, editlink, and deletelink inside foreach loop
+* Fix importing parent_form_id on child forms
+* Allow css file updating if FTP creds are present
+* A few jshint fixes
+* Add 'frm_ajax_url' hook
+* Allow layout classes to be used with submit button
+* Remove frm_last class
+* Prevent get_filesystem_method error in multisite after update
+* Conditionally use ssl for the ajax url for form submission
+
+
+= 2.0.12 =
+* Add option to center form on page
+* Improve styling classes for more consistency across different field classes, and make all classes responsive
+* Added a few more styling classes: frm_three_fourths, frm_two_fifths, frm_three_fifths
+* Remove in-place-editing from the field keys on the form builder page
+* Add 'frm_after_update_field_name' hook for changing a field name during editing
+* Update Bootstrap multiselect to v0.9.13
+* Add license page to prepare for add-ons. Big things are coming.
+* Fix: Prevent loading icon from being huge in some themes
+* Fix: When the jQuery UI css is loaded by another plugin on the form builder page, the required icon looked the same whether required or not. This styling conflict is resolved.
+* Fix: Make sure the form description size can be changed in the styling settings.
+* **Pro Features:**
+* Views can now be filtered by fields in the repeating sections.
+* Added [parent_id] shortcode for use in views. This shortcode will only have a value when the displaying entries in repeating sections.
+* Allow views to be created using the repeated entries. Since each repeating row is an entry in a hidden form, we can allow views to be created using those repeating rows for more flexability.
+* Added order parameter to frm-entry-links
+* Allow options in a post status field to come from the form builder. The options should have separate values and the saved values can include 'publish', 'draft', 'private', 'scheduled'.
+* Remove the option to lock field and form keys. This is more of a hassle than a feature.
+* Allow the entry key to be used with the frm-field-value shortcode instead of forcing the entry
+* Replaced inline 50px height for image fields with .frm_image_from_url class for easier control
+* Improve file upload field in Chrome to prevent extra space from showing.
+* Added 'frm_save_post_name' filter. This can be used for custom form actions that create posts.
+* Added 'frm_display_data_opts' filter.
+* Prevent frm_display_id custom field from saving when a field is selected in the create post settings instead of customized content
+* Fix: When forms were submitted without ajax, the redirect wasn't working consistently.
+* Fix: The shortcodes weren't processing in the message shown after an entry is updated. 
+* Fix: When we prevented the PayPal action from triggering on import, we stopped all actions. This is now fixed so an action can be set (in the code) to be triggered on import. Posts will now be created on import again.
+* Fix: The dynamic list field was showing the entry ID in the entries tab instead of the value.
+* Fix: The Add row button wasn't showing in a repeating section when returning to edit an entry if there were more than two rows in the section.
+* Fix: Improve dropping a field between two sections.
+* Fix: Remove nonce check for frm-entry-update-field shortode. Page caching gives front-end nonce checks issues.
+* Fix: We changed the parameters sent to the frm_after_update_field hook without realizing it. The 'field_id' attribute was sometimes an object, but was previously always an integer. This has been updated for reverse compatibility, and 'field' has been added with the full field object.
+* Fix: If you put -100 for the start date in a date field, -100 would show in the date field instead of 1915. This is now working correctly for dynamic values like this with three digits.
+* Fix: When filtering a view with a Dynamic field, NOT EQUAL TO will work correctly.
+* Fix: Double quotes were causing trouble when included inside an error message returned by the frm_validate_field_entry hook
+* Fix: Graphs using x_axis and start_date were having trouble
+* Fix: The js error after selecting an option in autocomplete field is fixed when there are calculations in the form.
+
 = 2.0.11 =
 * Fix issue with clearing array keys when sanitizing an array when displaying entry values
 * When the email "reply to" value uses the "from" setting, only use the email address without the name

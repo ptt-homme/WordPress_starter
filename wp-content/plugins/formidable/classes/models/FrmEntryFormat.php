@@ -64,7 +64,7 @@ class FrmEntryFormat {
 
 		if ( $atts['clickable'] ) {
 			$content = make_clickable( $content );
-	        }
+		}
 
 		return $content;
 	}
@@ -146,7 +146,7 @@ class FrmEntryFormat {
 	}
 
 	public static function fill_entry_user_info( $atts, array &$values ) {
-		if ( ! $atts['user_info'] ) {
+		if ( ! $atts['user_info'] || empty( $atts['entry'] ) ) {
 			return;
 		}
 
@@ -182,7 +182,7 @@ class FrmEntryFormat {
 		$data = $default_data;
 
 		if ( isset( $atts['entry']->description ) ) {
-			$data = maybe_unserialize( $atts['entry']->description );
+			$data = (array) maybe_unserialize( $atts['entry']->description );
 		} else if ( $atts['default_email'] ) {
 			$data = array(
 				'browser'  => '[browser]',
@@ -325,5 +325,4 @@ class FrmEntryFormat {
 			$content[] = '</tbody></table>';
 		}
 	}
-
 }

@@ -5,94 +5,43 @@ if ( ! defined('ABSPATH') ) {
 
 class FrmEntry {
 
-    public static function create( $values ) {
-        global $wpdb;
+	/**
+	* Create a new entry
+	*
+	* @param array $values
+	* @return int | boolean $entry_id
+	*/
+	public static function create( $values ) {
+		$entry_id = self::create_entry( $values, 'standard' );
 
-        self::sanitize_entry_post( $values );
+		return $entry_id;
+	}
 
-        $values = apply_filters('frm_pre_create_entry', $values);
+	/**
+	* Create a new entry with some differences depending on type
+	*
+	* @param array $values
+	* @param string $type
+	* @return int | boolean $entry_id
+	*/
+	private static function create_entry( $values, $type ) {
+		$new_values = self::before_insert_entry_in_database( $values, $type );
 
-		if ( ! isset( $values['item_key'] ) ) {
-			$values['item_key'] = '';
+		// Don't check XML entries for duplicates
+		if ( $type != 'xml' && self::is_duplicate( $new_values, $values ) ) {
+			return false;
 		}
 
-		$item_name = self::get_new_entry_name( $values, $values['item_key'] );
-        $new_values = array(
-            'item_key'  => FrmAppHelper::get_unique_key($values['item_key'], $wpdb->prefix .'frm_items', 'item_key'),
-			'name'      => FrmAppHelper::truncate( $item_name, 255, 1, '' ),
-            'ip'        => FrmAppHelper::get_ip_address(),
-            'is_draft'  => ( ( isset($values['frm_saving_draft']) && $values['frm_saving_draft'] == 1 ) ||  ( isset($values['is_draft']) && $values['is_draft'] == 1) ) ? 1 : 0,
-            'form_id'   => isset($values['form_id']) ? (int) $values['form_id']: null,
-			'post_id'   => isset( $values['post_id'] ) ? (int) $values['post_id']: 0,
-			'parent_item_id' => isset( $values['parent_item_id'] ) ? (int) $values['parent_item_id']: 0,
-            'created_at' => isset($values['created_at']) ? $values['created_at'] : current_time('mysql', 1),
-            'updated_at' => isset($values['updated_at']) ? $values['updated_at'] : ( isset($values['created_at']) ? $values['created_at'] : current_time('mysql', 1) ),
-        );
+		$entry_id = self::continue_to_create_entry( $values, $new_values );
 
-        if ( is_array($new_values['name']) ) {
-            $new_values['name'] = reset($new_values['name']);
-        }
-
-        if ( isset($values['description']) && ! empty($values['description']) ) {
-            $new_values['description'] = maybe_serialize($values['description']);
-        } else {
-            $new_values['description'] = serialize( array(
-				'browser'  => FrmAppHelper::get_server_value( 'HTTP_USER_AGENT' ),
-				'referrer' => FrmAppHelper::get_server_value( 'HTTP_REFERER' ),
-            ) );
-        }
-
-        //if(isset($values['id']) and is_numeric($values['id']))
-        //    $new_values['id'] = $values['id'];
-
-        if ( isset($values['frm_user_id']) && ( is_numeric($values['frm_user_id']) || FrmAppHelper::is_admin() ) ) {
-            $new_values['user_id'] = $values['frm_user_id'];
-        } else {
-            $user_ID = get_current_user_id();
-            $new_values['user_id'] = $user_ID ? $user_ID : 0;
-        }
-
-        $new_values['updated_by'] = isset($values['updated_by']) ? $values['updated_by'] : $new_values['user_id'];
-
-        // don't create duplicate entry
-        if ( self::is_duplicate($new_values, $values) ) {
-            return false;
-        }
-
-        $query_results = $wpdb->insert( $wpdb->prefix .'frm_items', $new_values );
-
-        if ( ! $query_results ) {
-            return false;
-        }
-
-        $entry_id = $wpdb->insert_id;
-
-        global $frm_vars;
-        if ( ! isset($frm_vars['saved_entries']) ) {
-            $frm_vars['saved_entries'] = array();
-        }
-        $frm_vars['saved_entries'][] = (int) $entry_id;
-
-        if ( isset($values['item_meta']) ) {
-            FrmEntryMeta::update_entry_metas($entry_id, $values['item_meta']);
-        }
-
-		self::clear_cache();
-
-		// this is a child entry
-		$is_child = isset( $values['parent_form_id'] ) && isset( $values['parent_nonce'] ) && ! empty( $values['parent_form_id'] ) && wp_verify_nonce( $values['parent_nonce'], 'parent' );
-
-		do_action( 'frm_after_create_entry', $entry_id, $new_values['form_id'], compact( 'is_child' ) );
-		do_action( 'frm_after_create_entry_'. $new_values['form_id'], $entry_id , compact( 'is_child' ) );
-
-        return $entry_id;
-    }
+		return $entry_id;
+	}
 
     /**
      * check for duplicate entries created in the last minute
      * @return boolean
      */
-    public static function is_duplicate($new_values, $values) {
+	public static function is_duplicate( $new_values, $values ) {
 		if ( defined('WP_IMPORTING') && WP_IMPORTING ) {
             return false;
         }
@@ -185,61 +134,44 @@ class FrmEntry {
         return $entry_id;
     }
 
-    public static function update( $id, $values ) {
-        global $wpdb, $frm_vars;
-        if ( isset($frm_vars['saved_entries']) && is_array($frm_vars['saved_entries']) && in_array( (int) $id, (array) $frm_vars['saved_entries'] ) ) {
-            return;
-        }
+	/**
+	* Update an entry (not via XML)
+	*
+	* @param int $id
+	* @param array $values
+	* @return boolean|int $update_results
+	*/
+	public static function update( $id, $values ) {
+		$update_results = self::update_entry( $id, $values, 'standard' );
 
-        $values = apply_filters('frm_pre_update_entry', $values, $id);
+		return $update_results;
+	}
 
-        $user_ID = get_current_user_id();
+	/**
+	* Update an entry with some differences depending on the update type
+	*
+	* @since 2.0.16
+	*
+	* @param int $id
+	* @param array $values
+	* @return boolean|int $query_results
+	*/
+	private static function update_entry( $id, $values, $update_type ) {
+		global $wpdb;
 
-		$item_name = self::get_new_entry_name( $values );
-        $new_values = array(
-			'name'      => $item_name,
-            'form_id'   => isset($values['form_id']) ? (int) $values['form_id'] : null,
-            'is_draft'  => ( ( isset($values['frm_saving_draft']) && $values['frm_saving_draft'] == 1 ) ||  ( isset($values['is_draft']) && $values['is_draft'] == 1) ) ? 1 : 0,
-            'updated_at' => current_time('mysql', 1),
-            'updated_by' => isset($values['updated_by']) ? $values['updated_by'] : $user_ID,
-        );
+		$update = self::before_update_entry( $id, $values, $update_type );
+		if ( ! $update ) {
+			return false;
+		}
 
-        if ( isset($values['post_id']) ) {
-            $new_values['post_id'] = (int) $values['post_id'];
-        }
+		$new_values = self::package_entry_to_update( $id, $values );
 
-        if ( isset($values['item_key']) ) {
-            $new_values['item_key'] = FrmAppHelper::get_unique_key($values['item_key'], $wpdb->prefix .'frm_items', 'item_key', $id);
-        }
+		$query_results = $wpdb->update( $wpdb->prefix .'frm_items', $new_values, compact('id') );
 
-        if ( isset($values['parent_item_id']) ) {
-            $new_values['parent_item_id'] = (int) $values['parent_item_id'];
-        }
+		self::after_update_entry( $query_results, $id, $values, $new_values );
 
-        if ( isset($values['frm_user_id']) && is_numeric($values['frm_user_id']) ) {
-            $new_values['user_id'] = $values['frm_user_id'];
-        }
-
-        $new_values = apply_filters('frm_update_entry', $new_values, $id);
-        $query_results = $wpdb->update( $wpdb->prefix .'frm_items', $new_values, compact('id') );
-
-        if ( $query_results ) {
-			self::clear_cache();
-        }
-
-        if ( ! isset( $frm_vars['saved_entries'] ) ) {
-            $frm_vars['saved_entries'] = array();
-        }
-
-        $frm_vars['saved_entries'][] = (int) $id;
-
-        if ( isset($values['item_meta']) ) {
-            FrmEntryMeta::update_entry_metas($id, $values['item_meta']);
-        }
-        do_action('frm_after_update_entry', $id, $new_values['form_id']);
-        do_action('frm_after_update_entry_'. $new_values['form_id'], $id);
-        return $query_results;
-    }
+		return $query_results;
+	}
 
 	public static function &destroy( $id ) {
         global $wpdb;
@@ -304,7 +236,7 @@ class FrmEntry {
 		}
 	}
 
-    public static function getOne( $id, $meta = false) {
+	public static function getOne( $id, $meta = false ) {
         global $wpdb;
 
         $query = "SELECT it.*, fr.name as form_name, fr.form_key as form_key FROM {$wpdb->prefix}frm_items it
@@ -330,7 +262,7 @@ class FrmEntry {
         return stripslashes_deep($entry);
     }
 
-    public static function get_meta($entry) {
+	public static function get_meta( $entry ) {
         if ( ! $entry ) {
             return $entry;
         }
@@ -501,6 +433,46 @@ class FrmEntry {
         }
     }
 
+	/**
+	* Prepare the data before inserting it into the database
+	*
+	* @since 2.0.16
+	* @param array $values
+	* @param string $type
+	* @return array $new_values
+	*/
+	private static function before_insert_entry_in_database( &$values, $type ) {
+
+		self::sanitize_entry_post( $values );
+
+		if ( $type != 'xml' ) {
+			$values = apply_filters('frm_pre_create_entry', $values);
+		}
+
+		$new_values = self::package_entry_data( $values );
+
+		return $new_values;
+	}
+
+	/**
+	* Create an entry and perform after create actions
+	*
+	* @since 2.0.16
+	* @param array $values
+	* @param array $new_values
+	* @return boolean|int $entry_id
+	*/
+	private static function continue_to_create_entry( $values, $new_values ) {
+		$entry_id = self::insert_entry_into_database( $new_values );
+		if ( ! $entry_id ) {
+			return false;
+		}
+
+		self::after_insert_entry_in_database( $values, $new_values, $entry_id );
+
+		return $entry_id;
+	}
+
     /**
      * Sanitize the POST values before we use them
      *
@@ -523,6 +495,370 @@ class FrmEntry {
         );
 
         FrmAppHelper::sanitize_request( $sanitize_method, $values );
+    }
+
+	/**
+	* Prepare the new values for inserting into the database
+	*
+	* @since 2.0.16
+	* @param array $values
+	* @return array $new_values
+	*/
+	private static function package_entry_data( &$values ) {
+		global $wpdb;
+
+		if ( ! isset( $values['item_key'] ) ) {
+			$values['item_key'] = '';
+		}
+
+		$item_name = self::get_new_entry_name( $values, $values['item_key'] );
+		$new_values = array(
+			'item_key'  => FrmAppHelper::get_unique_key($values['item_key'], $wpdb->prefix .'frm_items', 'item_key'),
+			'name'      => FrmAppHelper::truncate( $item_name, 255, 1, '' ),
+			'ip'        => FrmAppHelper::get_ip_address(),
+			'is_draft'  => self::get_is_draft_value( $values ),
+			'form_id'   => self::get_form_id( $values ),
+			'post_id'   => self::get_post_id( $values ),
+			'parent_item_id' => self::get_parent_item_id( $values ),
+			'created_at' => self::get_created_at( $values ),
+			'updated_at' => self::get_updated_at( $values ),
+			'description' => self::get_entry_description( $values ),
+			'user_id' => self::get_entry_user_id( $values ),
+		);
+
+		if ( is_array($new_values['name']) ) {
+			$new_values['name'] = reset($new_values['name']);
+		}
+
+		$new_values['updated_by'] = isset($values['updated_by']) ? $values['updated_by'] : $new_values['user_id'];
+
+		return $new_values;
+	}
+
+	/**
+	* Get the is_draft value for a new entry
+	*
+	* @since 2.0.16
+	* @param array $values
+	* @return int
+	*/
+	private static function get_is_draft_value( $values ) {
+		return ( ( isset( $values['frm_saving_draft'] ) && $values['frm_saving_draft'] == 1 ) ||  ( isset( $values['is_draft'] ) && $values['is_draft'] == 1 ) ) ? 1 : 0;
+	}
+
+	/**
+	* Get the form_id value for a new entry
+	*
+	* @since 2.0.16
+	* @param array $values
+	* @return int|null
+	*/
+	private static function get_form_id( $values ) {
+		return isset( $values['form_id'] ) ? (int) $values['form_id'] : null;
+	}
+
+	/**
+	* Get the post_id value for a new entry
+	*
+	* @since 2.0.16
+	* @param array $values
+	* @return int
+	*/
+	private static function get_post_id( $values ) {
+		return isset( $values['post_id'] ) ? (int) $values['post_id']: 0;
+	}
+
+	/**
+	* Get the parent_item_id value for a new entry
+	*
+	* @since 2.0.16
+	* @param array $values
+	* @return int
+	*/
+	private static function get_parent_item_id( $values ) {
+		return isset( $values['parent_item_id'] ) ? (int) $values['parent_item_id']: 0;
+	}
+
+	/**
+	* Get the created_at value for a new entry
+	*
+	* @since 2.0.16
+	* @param array $values
+	* @return string
+	*/
+	private static function get_created_at( $values ) {
+		return isset( $values['created_at'] ) ? $values['created_at']: current_time('mysql', 1);
+	}
+
+	/**
+	* Get the updated_at value for a new entry
+	*
+	* @since 2.0.16
+	* @param array $values
+	* @return string
+	*/
+	private static function get_updated_at( $values ) {
+		if ( isset( $values['updated_at'] ) ) {
+			$updated_at = $values['updated_at'];
+		} else {
+			$updated_at = self::get_created_at( $values );
+		}
+
+		return $updated_at;
+	}
+
+	/**
+	* Get the description value for a new entry
+	*
+	* @since 2.0.16
+	* @param array $values
+	* @return string
+	*/
+	private static function get_entry_description( $values ) {
+		if ( isset( $values['description'] ) && ! empty( $values['description'] ) ) {
+			$description = maybe_serialize( $values['description'] );
+		} else {
+			$description = serialize( array(
+				'browser'  => FrmAppHelper::get_server_value( 'HTTP_USER_AGENT' ),
+				'referrer' => FrmAppHelper::get_server_value( 'HTTP_REFERER' ),
+			) );
+		}
+
+		return $description;
+	}
+
+	/**
+	* Get the user_id value for a new entry
+	*
+	* @since 2.0.16
+	* @param array $values
+	* @return int
+	*/
+	private static function get_entry_user_id( $values ) {
+		if ( isset( $values['frm_user_id'] ) && ( is_numeric( $values['frm_user_id'] ) || FrmAppHelper::is_admin() ) ) {
+			$user_id = $values['frm_user_id'];
+		} else {
+			$current_user_id = get_current_user_id();
+			$user_id = $current_user_id ? $current_user_id : 0;
+		}
+
+		return $user_id;
+	}
+
+	/**
+	* Insert new entry into the database
+	*
+	* @since 2.0.16
+	* @param array $new_values
+	* @return int | boolean $entry_id
+	*/
+	private static function insert_entry_into_database( $new_values ) {
+		global $wpdb;
+
+		$query_results = $wpdb->insert( $wpdb->prefix .'frm_items', $new_values );
+
+		if ( ! $query_results ) {
+			$entry_id = false;
+		} else {
+			$entry_id = $wpdb->insert_id;
+		}
+
+		return $entry_id;
+	}
+
+	/**
+	* Add the new entry to global $frm_vars
+	*
+	* @since 2.0.16
+	* @param int $entry_id
+	*/
+	private static function add_new_entry_to_frm_vars( $entry_id ) {
+		global $frm_vars;
+
+		if ( ! isset($frm_vars['saved_entries']) ) {
+			$frm_vars['saved_entries'] = array();
+		}
+
+		$frm_vars['saved_entries'][] = (int) $entry_id;
+	}
+
+	/**
+	* Add entry metas, if there are any
+	*
+	* @since 2.0.16
+	* @param array $values
+	* @param int $entry_id
+	*/
+	private static function maybe_add_entry_metas( $values, $entry_id ) {
+		if ( isset($values['item_meta']) ) {
+			FrmEntryMeta::update_entry_metas( $entry_id, $values['item_meta'] );
+		}
+	}
+
+	/**
+	* Trigger frm_after_create_entry hooks
+	*
+	* @since 2.0.16
+	* @param int $entry_id
+	* @param array $new_values
+	*/
+	private static function after_entry_created_actions( $entry_id, $values, $new_values ) {
+		// this is a child entry
+		$is_child = isset( $values['parent_form_id'] ) && isset( $values['parent_nonce'] ) && ! empty( $values['parent_form_id'] ) && wp_verify_nonce( $values['parent_nonce'], 'parent' );
+
+		do_action( 'frm_after_create_entry', $entry_id, $new_values['form_id'], compact( 'is_child' ) );
+		do_action( 'frm_after_create_entry_'. $new_values['form_id'], $entry_id , compact( 'is_child' ) );
+	}
+
+	/**
+	* Actions to perform immediately after an entry is inserted in the frm_items database
+	*
+	* @since 2.0.16
+	* @param array $values
+	* @param array $new_values
+	* @param int $entry_id
+	*/
+	private static function after_insert_entry_in_database( $values, $new_values, $entry_id ) {
+
+		self::add_new_entry_to_frm_vars( $entry_id );
+
+		self::maybe_add_entry_metas( $values, $entry_id );
+
+		self::clear_cache();
+
+		self::after_entry_created_actions( $entry_id, $values, $new_values );
+	}
+
+	/**
+	* Perform some actions right before updating an entry
+	*
+	* @since 2.0.16
+	* @param int $id
+	* @param array $values
+	* @param string $update_type
+	* @return boolean $update
+	*/
+	private static function before_update_entry( $id, &$values, $update_type ) {
+		$update = true;
+
+		global $frm_vars;
+
+		if ( isset( $frm_vars['saved_entries'] ) && is_array( $frm_vars['saved_entries'] ) && in_array( (int) $id, (array) $frm_vars['saved_entries'] ) ) {
+			$update = false;
+		}
+
+		if ( $update && $update_type != 'xml' ) {
+			$values = apply_filters('frm_pre_update_entry', $values, $id);
+		}
+
+		return $update;
+	}
+
+	/**
+	* Package the entry data for updating
+	*
+	* @since 2.0.16
+	* @param int $id
+	* @param array $values
+	* @return array $new_values
+	*/
+	private static function package_entry_to_update( $id, $values ) {
+		global $wpdb;
+
+		$new_values = array(
+			'name'      => self::get_new_entry_name( $values ),
+			'form_id'   => self::get_form_id( $values ),
+			'is_draft'  => self::get_is_draft_value( $values ),
+			'updated_at' => current_time('mysql', 1),
+			'updated_by' => isset($values['updated_by']) ? $values['updated_by'] : get_current_user_id(),
+		);
+
+		if ( isset($values['post_id']) ) {
+			$new_values['post_id'] = (int) $values['post_id'];
+		}
+
+		if ( isset($values['item_key']) ) {
+			$new_values['item_key'] = FrmAppHelper::get_unique_key($values['item_key'], $wpdb->prefix .'frm_items', 'item_key', $id);
+		}
+
+		if ( isset($values['parent_item_id']) ) {
+			$new_values['parent_item_id'] = (int) $values['parent_item_id'];
+		}
+
+		if ( isset($values['frm_user_id']) && is_numeric($values['frm_user_id']) ) {
+			$new_values['user_id'] = $values['frm_user_id'];
+		}
+
+		$new_values = apply_filters('frm_update_entry', $new_values, $id);
+
+		return $new_values;
+	}
+
+	/**
+	* Perform some actions right after updating an entry
+	*
+	* @since 2.0.16
+	* @param boolean|int $query_results
+	* @param int $id
+	* @param array $values
+	* @param array $new_values
+	*/
+	private static function after_update_entry( $query_results, $id, $values, $new_values ) {
+		if ( $query_results ) {
+			self::clear_cache();
+		}
+
+		global $frm_vars;
+		if ( ! isset( $frm_vars['saved_entries'] ) ) {
+			$frm_vars['saved_entries'] = array();
+		}
+
+		$frm_vars['saved_entries'][] = (int) $id;
+
+		if ( isset( $values['item_meta'] ) ) {
+			FrmEntryMeta::update_entry_metas( $id, $values['item_meta'] );
+		}
+
+		do_action('frm_after_update_entry', $id, $new_values['form_id'] );
+		do_action('frm_after_update_entry_'. $new_values['form_id'], $id );
+	}
+
+	/**
+	* Create entry from an XML import
+	* Certain actions aren't necessary when importing (like saving sub entries, checking for duplicates, etc.)
+	*
+	* @since 2.0.16
+	* @param array $values
+	* @return int | boolean $entry_id
+	*/
+	public static function create_entry_from_xml( $values ) {
+		$entry_id = self::create_entry( $values, 'xml' );
+
+		return $entry_id;
+	}
+
+	/**
+	* Update entry from an XML import
+	* Certain actions aren't necessary when importing (like saving sub entries and modifying other vals)
+	*
+	* @since 2.0.16
+	* @param int $id
+	* @param array $values
+	* @return int | boolean $updated
+	*/
+	public static function update_entry_from_xml( $id, $values ) {
+		$updated = self::update_entry( $id, $values, 'xml' );
+
+		return $updated;
+	}
+
+    /**
+     * @param string $key
+     * @return int entry_id
+     */
+	public static function get_id_by_key( $key ) {
+        $entry_id = FrmDb::get_var( 'frm_items', array( 'item_key' => sanitize_title( $key ) ) );
+        return $entry_id;
     }
 
 	public static function validate( $values, $exclude = false ) {
@@ -564,5 +900,4 @@ class FrmEntry {
 		_deprecated_function( __FUNCTION__, '2.0.9', 'FrmEntryValidate::akismet' );
 		return FrmEntryValidate::akismet( $values );
 	}
-
 }

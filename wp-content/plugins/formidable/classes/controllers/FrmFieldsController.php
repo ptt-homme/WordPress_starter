@@ -65,7 +65,7 @@ class FrmFieldsController {
     /**
      * @param integer $form_id
      */
-    public static function include_new_field($field_type, $form_id) {
+	public static function include_new_field( $field_type, $form_id ) {
         $values = array();
         if ( FrmAppHelper::pro_is_installed() ) {
             $values['post_type'] = FrmProFormsHelper::post_type($form_id);
@@ -99,7 +99,7 @@ class FrmFieldsController {
         wp_die();
     }
 
-    public static function edit_name($field = 'name', $id = '') {
+	public static function edit_name( $field = 'name', $id = '' ) {
         check_ajax_referer( 'frm_ajax', 'nonce' );
 
         if ( empty($field) ) {
@@ -119,6 +119,9 @@ class FrmFieldsController {
         }
 
 		FrmField::update( $id, array( $field => $value ) );
+
+		do_action( 'frm_after_update_field_' . $field, compact( 'id', 'value' ) );
+
 		echo stripslashes( wp_kses_post( $value ) );
         wp_die();
     }
@@ -479,7 +482,7 @@ class FrmFieldsController {
         wp_die();
     }
 
-    public static function change_type($type) {
+	public static function change_type( $type ) {
         $type_switch = array(
             'scale'     => 'radio',
             '10radio'   => 'radio',
@@ -499,12 +502,13 @@ class FrmFieldsController {
         return $type;
     }
 
-    public static function display_field_options($display) {
+	public static function display_field_options( $display ) {
 		switch ( $display['type'] ) {
             case 'captcha':
                 $display['required'] = false;
                 $display['invalid'] = true;
                 $display['default_blank'] = false;
+				$display['captcha_size'] = true;
             break;
             case 'radio':
                 $display['default_blank'] = false;
@@ -536,6 +540,7 @@ class FrmFieldsController {
         self::add_html_size($field, $add_html);
         self::add_html_length($field, $add_html);
         self::add_html_placeholder($field, $add_html, $class);
+		self::add_validation_messages( $field, $add_html );
 
         $class = apply_filters('frm_field_classes', implode(' ', $class), $field);
 
@@ -543,6 +548,7 @@ class FrmFieldsController {
 
         self::add_shortcodes_to_html($field, $add_html);
 
+		$add_html = apply_filters( 'frm_field_extra_html', $add_html, $field );
 		$add_html = ' ' . implode( ' ', $add_html ) . '  ';
 
         if ( $echo ) {
@@ -552,7 +558,7 @@ class FrmFieldsController {
         return $add_html;
     }
 
-    private static function add_input_classes($field, array &$class) {
+	private static function add_input_classes( $field, array &$class ) {
         if ( isset($field['input_class']) && ! empty($field['input_class']) ) {
             $class[] = $field['input_class'];
         }
@@ -571,7 +577,7 @@ class FrmFieldsController {
         }
     }
 
-    private static function add_html_size($field, array &$add_html) {
+	private static function add_html_size( $field, array &$add_html ) {
 		if ( ! isset( $field['size'] ) || $field['size'] <= 0 || in_array( $field['type'], array( 'select', 'data', 'time', 'hidden' ) ) ) {
             return;
         }
@@ -591,7 +597,7 @@ class FrmFieldsController {
         self::add_html_cols($field, $add_html);
     }
 
-    private static function add_html_cols($field, array &$add_html) {
+	private static function add_html_cols( $field, array &$add_html ) {
 		if ( ! in_array( $field['type'], array( 'textarea', 'rte' ) ) ) {
             return;
         }
@@ -616,7 +622,7 @@ class FrmFieldsController {
 		$add_html['cols'] = 'cols="' . absint( $size ) . '"';
     }
 
-    private static function add_html_length($field, array &$add_html) {
+	private static function add_html_length( $field, array &$add_html ) {
         // check for max setting and if this field accepts maxlength
 		if ( FrmField::is_option_empty( $field, 'max' ) || in_array( $field['type'], array( 'textarea', 'rte', 'hidden' ) ) ) {
             return;
@@ -630,7 +636,7 @@ class FrmFieldsController {
 		$add_html['maxlength'] = 'maxlength="' . esc_attr( $field['max'] ) . '"';
     }
 
-    private static function add_html_placeholder($field, array &$add_html, array &$class) {
+	private static function add_html_placeholder( $field, array &$add_html, array &$class ) {
 		if ( empty( $field['default_value'] ) || FrmAppHelper::is_admin_page( 'formidable' ) ) {
 			return;
 		}
@@ -659,6 +665,25 @@ class FrmFieldsController {
             }
         }
     }
+
+	private static function add_validation_messages( $field, array &$add_html ) {
+		if ( FrmField::is_required( $field ) ) {
+			$required_message = FrmFieldsHelper::get_error_msg( $field, 'blank' );
+			$add_html['data-reqmsg'] = 'data-reqmsg="' . esc_attr( $required_message ) . '"';
+		}
+
+		if ( ! FrmField::is_option_empty( $field, 'invalid' ) ) {
+			$invalid_message = FrmFieldsHelper::get_error_msg( $field, 'invalid' );
+			$add_html['data-invmsg'] = 'data-invmsg="' . esc_attr( $invalid_message ) . '"';
+		}
+
+		if ( $field['type'] == 'tel' ) {
+			$format = FrmEntryValidate::phone_format( $field );
+			$format = substr( $format, 2, -2 );
+			$key = 'pattern';
+			$add_html[ $key ] = $key . '="' . esc_attr( $format ) . '"';
+		}
+	}
 
     private static function add_shortcodes_to_html( $field, array &$add_html ) {
         if ( FrmField::is_option_empty( $field, 'shortcodes' ) ) {
@@ -693,7 +718,7 @@ class FrmFieldsController {
         return $opt;
     }
 
-    public static function check_label($opt) {
+	public static function check_label( $opt ) {
         if ( is_array($opt) ) {
             $opt = (isset($opt['label']) ? $opt['label'] : reset($opt));
         }

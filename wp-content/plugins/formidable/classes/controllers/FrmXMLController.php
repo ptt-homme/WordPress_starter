@@ -49,7 +49,11 @@ class FrmXMLController {
     }
 
     public static function form( $errors = array(), $message = '' ) {
-        $forms = FrmForm::getAll( array( 'status' => array( null, '', 'published' ) ), 'name' );
+		$where = array(
+			'parent_form_id' => array( null, 0 ),
+			'status' => array( null, '', 'published' )
+		);
+		$forms = FrmForm::getAll( $where, 'name' );
 
         $export_types = apply_filters( 'frm_xml_export_types',
             array( 'forms' => __( 'Forms', 'formidable' ) )
@@ -155,7 +159,7 @@ class FrmXMLController {
         wp_die();
     }
 
-    public static function generate_xml($type, $args = array() ) {
+	public static function generate_xml( $type, $args = array() ) {
     	global $wpdb;
 
 	    $type = (array) $type;
@@ -269,7 +273,7 @@ class FrmXMLController {
         include(FrmAppHelper::plugin_path() .'/classes/views/xml/xml.php');
     }
 
-    public static function allow_mime($mimes) {
+	public static function allow_mime( $mimes ) {
         if ( ! isset( $mimes['csv'] ) ) {
             // allow csv files
             $mimes['csv'] = 'text/csv';

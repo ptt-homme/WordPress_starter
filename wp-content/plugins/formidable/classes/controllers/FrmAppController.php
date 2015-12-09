@@ -23,7 +23,7 @@ class FrmAppController {
         FrmAppHelper::load_font_style();
     }
 
-    public static function get_form_nav( $form, $show_nav = '', $title = 'show' ) {
+	public static function get_form_nav( $form, $show_nav = false, $title = 'show' ) {
         global $pagenow, $frm_vars;
 
 		$show_nav = FrmAppHelper::get_param( 'show_nav', $show_nav, 'get', 'absint' );
@@ -256,7 +256,7 @@ class FrmAppController {
 
 		$upgrade_url = add_query_arg( array( 'action' => 'frm_silent_upgrade' ), $upgrade_url );
 		$r = wp_remote_get( esc_url_raw( $upgrade_url ) );
-		if ( is_wp_error( $r ) ) {
+		if ( is_wp_error( $r ) || ! is_array( $r ) || ! empty( $r['body'] ) ) {
 			// if the remove post fails, use javascript instead
 			add_action( 'admin_notices', 'FrmAppController::install_js_fallback' );
 		}

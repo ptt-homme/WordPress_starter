@@ -89,7 +89,7 @@ class FrmHooksController {
 		add_action( 'admin_init', 'FrmAppController::admin_init', 11 );
 		add_filter( 'admin_body_class', 'FrmAppController::wp_admin_body_class' );
 		add_filter( 'plugin_action_links_' . FrmAppHelper::plugin_folder() . '/formidable.php', 'FrmAppController::settings_link' );
-        register_activation_hook( FrmAppHelper::plugin_path() . '/formidable.php', 'FrmAppController::activation_install' );
+		register_activation_hook( FrmAppHelper::plugin_folder() . '/formidable.php', 'FrmAppController::activation_install' );
 
         // Entries Controller
         add_action( 'admin_menu', 'FrmEntriesController::menu', 12 );
@@ -114,7 +114,7 @@ class FrmHooksController {
 
         add_filter( 'set-screen-option', 'FrmFormsController::save_per_page', 10, 3 );
         add_action( 'admin_footer', 'FrmFormsController::insert_form_popup' );
-        add_filter( 'media_buttons_context', 'FrmFormsController::insert_form_button' );
+		add_action( 'media_buttons', 'FrmFormsController::insert_form_button' );
 
         // Forms Model
         add_action( 'frm_after_duplicate_form', 'FrmForm::after_duplicate', 10, 2 );
@@ -141,6 +141,10 @@ class FrmHooksController {
 		add_action( 'wp_ajax_frm_install', 'FrmAppController::ajax_install' );
         add_action( 'wp_ajax_frm_uninstall', 'FrmAppController::uninstall' );
         add_action( 'wp_ajax_frm_deauthorize', 'FrmAppController::deauthorize' );
+
+		// Addons Controller
+		add_action('wp_ajax_frm_addon_activate', 'FrmAddon::activate' );
+		add_action('wp_ajax_frm_addon_deactivate', 'FrmAddon::deactivate' );
 
         // Fields Controller
         add_action( 'wp_ajax_frm_load_field', 'FrmFieldsController::load_field' );
